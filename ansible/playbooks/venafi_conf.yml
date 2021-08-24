@@ -1,0 +1,48 @@
+# https://github.com/hashicorp/vault-guides/tree/master/secrets/vault-venafi-pki-backend-integration
+- hosts: vault_master
+  environment:
+    VAULT_TOKEN: YOUR_TOKEN
+    VAULT_ADDR: YOUR_VAULT_ADDR
+    VAULT_SKIP_VERIFY: true
+    TPP_ADDR: https://example.venafi.com/vedsdk
+    TPP_USER: serviceaccountuser
+    TPP_PASS: serviceaccountpassword
+    TPP_ZONE: "Certificates\\\\HashiCorp Vault\\\\Internal PKI"
+    TPP_DOMAIN: venafi.com
+  gather_facts: yes
+  become: yes
+  tasks:
+
+# https://www.vaultproject.io/docs/internals/plugins
+    - name: Install venafi plugin
+      shell: vault plugin register -sha256="$(sha256sum /etc/vault.d/plugins/venafi-pki-backend | cut -d' ' -f1)" secret venafi-pki-backend
+      register: command_output
+    - debug:
+        var: command_output.stdout_lines
+
+    # - name: Install venafi plugin
+    #   shell: vault write sys/plugins/catalog/secret/venafi-pki-backend sha_256="$(sha256sum /etc/vault.d/plugins/venafi-pki-backend | cut -d' ' -f1)" command="venafi-pki-backend"
+    #   register: command_output
+    # - debug:
+    #     var: command_output.stdout_lines
+
+    - name: Enable venafi plugin
+      shell: vault secrets enable -path=venafi-pki0 -plugin-name=venafi-pki-backend plugin
+      ignore_errors: yes
+      register: command_output
+    - debug:
+        var: command_output.stdout_lines
+
+    - name: Create a PKI role for the venafi-pki backend
+      shell: vault write venafi-pki/roles/tpp-backend \
+              tpp_url="$TPP_ADDR" \
+              tpp_user="$TPP_USER" \
+              tpp_password="$TPP_PASS" \
+              zone="$TPP_ZONE" \
+              generate_lease=true store_by_cn=true store_pkey=true store_by_serial=true ttl=1h max_ttl=1h \
+              allowed_domains=venafi.com \
+              allow_subdomains=true
+      ignore_errors: yes
+      register: command_output
+    - debug:
+        var: command_output.stdout_lines

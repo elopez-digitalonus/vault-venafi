@@ -1,0 +1,4 @@
+#!/bin/bash
+
+export VAULT_ADDR=YOUR_VAULT_ADDR
+export VAULT_TOKEN=YOUR_TOKEN

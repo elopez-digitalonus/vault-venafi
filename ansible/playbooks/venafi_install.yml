@@ -1,0 +1,39 @@
+# https://github.com/hashicorp/vault-guides/tree/master/secrets/vault-venafi-pki-backend-integration
+- hosts: vault
+  vars:
+    # https://github.com/Venafi/vault-pki-backend-venafi/releases/
+    venafi_plugin: https://github.com/Venafi/vault-pki-backend-venafi/releases/download/v0.9.1/venafi-pki-backend_v0.9.1_linux.zip
+  gather_facts: yes
+  become: yes
+  tasks:
+
+    - name: Update all packages to their latest version
+      apt:
+        name: "*"
+        state: latest
+
+    - name: Install a list of packages
+      apt:
+        pkg:
+          - unzip
+
+    - name: Creates directory
+      file:
+        path: /etc/vault.d/plugins
+        state: directory
+
+    - name: Download venafi plugin
+      unarchive:
+        src: "{{venafi_plugin}}"
+        dest: /etc/vault.d/plugins
+        remote_src: True
+
+    - name: Add config plugins
+      lineinfile:
+        path: /etc/vault.d/vault.hcl
+        line: 'plugin_directory = "/etc/vault.d/plugins/"'
+
+    - name: Restart service vault
+      service:
+        name: vault
+        state: restarted
